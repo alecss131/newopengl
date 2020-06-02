@@ -63,7 +63,7 @@
 ```cpp
     glCreateVertexArrays(1, &VAO);
     glCreateBuffers(1, &VBO);
-    glNamedBufferData(VBO, sizeof(vertices), vertices, GL_DYNAMIC_STORAGE_BIT); //mutable buffer 
+    glNamedBufferData(VBO, sizeof(vertices), vertices, GL_STATIC_DRAW); //mutable buffer 
     //glNamedBufferStorage(VBO, sizeof(vertices), vertices, GL_DYNAMIC_STORAGE_BIT); //immutable buffer
     //glNamedBufferSubData(VBO, 0, sizeof(vertices), vertices); //buffer subdata
     glEnableVertexArrayAttrib(VAO, 0);
@@ -128,8 +128,8 @@ void glVertexArrayBindingDivisor(GLuint vaobj, GLuint bindingindex, GLuint divis
     glCreateVertexArrays(1, &VAO);
     glCreateBuffers(1, &VBO);
     glCreateBuffers(1, &VBE);
-    glNamedBufferData(VBO, sizeof(vertices), vertices, GL_DYNAMIC_STORAGE_BIT);
-    glNamedBufferData(VBE, sizeof(indices), indices, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferData(VBO, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glNamedBufferData(VBE, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexArrayAttrib(VAO, 0);
     glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, false, 0);
     glVertexArrayVertexBuffer(VAO, 0, VBO, 0, 3 * sizeof(GLfloat));
@@ -153,7 +153,7 @@ void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
 ```cpp
     glCreateVertexArrays(1, &VAO);
     glCreateBuffers(1, &VBO);
-    glNamedBufferData(VBO, sizeof(indices) + sizeof(vertices), NULL, GL_DYNAMIC_STORAGE_BIT);
+    glNamedBufferData(VBO, sizeof(indices) + sizeof(vertices), NULL, GL_STATIC_DRAW);
     glNamedBufferSubData(VBO, 0, sizeof(indices), indices);
     glNamedBufferSubData(VBO, sizeof(indices), sizeof(vertices), vertices);
     glEnableVertexArrayAttrib(VAO, 0);
