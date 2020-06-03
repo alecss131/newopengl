@@ -58,6 +58,118 @@
 - Пятый аргумент называется шагом и описывает расстояние между наборами данных.
 - Последний параметр имеет тип GLvoid* и поэтому требует такое странное приведение типов. Это смещение начала данных в буфере. У нас буфер не имеет смещения и поэтому мы указываем 0.
 
+Отрисовка
+
+```cpp
+    //отрисовка без индексов
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    //glDrawArraysInstanced(GL_TRIANGLES, 0, 3, 2); //instanced 2 trinangles
+    glBindVertexArray(0);
+    //отрисовка с индексами
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+    //glDrawElementsInstanced(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0, 2); //instanced 2 triangles
+    glBindVertexArray(0);
+```
+
+Удаление буферов
+
+```cpp
+    glDeleteBuffers(1, &VBE);
+    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO);
+```
+
+### OpenGL 4.3
+
+В версии 4.3 появились новые функции для работы с буферами, которые в последствии обновились в 4.5 версии под DSA. Лично я не вижу особого смысла в использовании данного нововведения, так как по сути ничего нового не добавилось, а количество необходимого кода увеличилось. Рассматриваю их только потому что они легли в основу следующего обновления и потому надо уметь ими пользоваться. Начну с кода. Версия без индексов.
+
+```cpp
+    glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribFormat(0, 3, GL_FLOAT, false, 0);
+    glBindVertexBuffer(0, VBO, 0, 3 * sizeof(GLfloat));
+    glVertexAttribBinding(0, 0);
+    //glVertexBindingDivisor(0, 1); //instancing
+    glBindVertexArray(0);
+```
+
+Версия с индексами.
+
+```cpp
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &VBE);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VBE);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribFormat(0, 3, GL_FLOAT, false, 0);
+    glBindVertexBuffer(0, VBO, 0, 3 * sizeof(GLfloat));
+    glVertexAttribBinding(0, 0);
+    glBindVertexArray(0);
+```
+
+Теперь разберем код, как можно увидеть поменялись функции связанные с атрибутами вершин. Перечислю замены: `glVertexAttribFormat`, `glBindVertexBuffer` и `glVertexAttribBinding` вместо `glVertexAttribPointer`; `glVertexBindingDivisor` вместо `glVertexAttribDivisor`.
+
+Теперь описания новых функций и их параметров.
+
+```cpp
+void glVertexAttribFormat(GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset)
+```
+
+по сути является аналогом `glVertexAttribPointer`, только создает атрибты не привязанные к буферу
+
+- attribindex описываемый индекс атрибутов вершин
+- size количество значений на вершину, которые хранятся в массиве. Один из: 1 2 3 4 BGRA
+- type тип данных, хранящихся в массиве
+- normalized, если true, тогда целочисленные данные нормализуются в диапазоне [-1, 1] или [0, 1], если они подписаны или не подписаны, соответственно. Если false, то целочисленные данные напрямую преобразуются в число с плавающей запятой.
+- relativeoffset относительное смещение, измеренного в базовых машинных единицах первого элемента относительно начала привязки буфера вершин, из которого этот атрибут выбирается 
+
+```cpp
+void glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride)
+```
+
+Связывает буфер с точкой привязки вершинного буфера.
+
+- bindingindex индекс точки привязки вершинного буфера, к которой привязывается буфер 
+- buffer имя существующего буфера для привязки к точке привязки вершинного буфера
+- offset смещения первого элемента буфера
+- stride расстояние между элементами в буфере
+
+```cpp
+void glVertexAttribBinding(GLuint attribindex, GLuint bindingindex)
+```
+
+Связывает атрибуты вершин и привязку вершинного буфера. То есть связывает attribindex и bindingindex между собой из функций `glVertexArrayAttribFormat` и `glVertexArrayVertexBuffer` соответственно.
+
+- attribindex индекс атрибута для привязки к привязке буфера вершин
+- bindingindex индекс привязки буфера вершин, с которым связывается общий атрибут вершины
+
+```cpp
+void glVertexBindingDivisor(GLuint bindingindex, GLuint divisor)
+```
+
+Изменяет скорость, с которой общие атрибуты вершин продвигаются во время рендеринга экземпляров. Например если divisor равен: 0 - каждую вершину, 1 - каждый экземпляр.
+
+- bindingindex индекс общего атрибута вершины
+- divisor количество экземпляров, которые будут проходить между обновлениями атрибута в индексе слота
+
+Изменений в отрисовке и удалении буферов нету.
+
+### OpenGL 4.4 Неизменяемые буферы
+
+В версии 4.4 добавили неизменяемые (immutable) буферы. Новая функция `glBufferStorage` подобная уже знакомой `glBufferData`. Использование почти такое же как и у `glBufferData` за одним исключением, используются другие флаги, использование старых (напимер `GL_STATIC_DRAW`) будет приводить к ошибкам. По сути для простого рисования достаточно одного флага `GL_DYNAMIC_STORAGE_BIT` вместо прошлых трех (так как понимаю что больше нету разделения на STREAM, STATIC и DYNAMIC и это выбирается автоматически).
+
+### OpenGL 4.5 DSA
+
 В opengl версии 4.5 появилась такая вещь как Direct State Access (DSA) — прямой доступ к состоянию. Средство изменения объектов OpenGL без необходимости привязывать их к контексту. Это позволяет изменять состояние объекта в локальном контексте, не затрагивая глобальное состояние, разделяемое всеми частями приложения. Это также делает API-интерфейс немного более объектно-ориентированным, поскольку функции, которые изменяют состояние объектов, могут быть четко определены. 
 
 Давайте перепишем примеры выше используя DSA. Начнем с безиндексного варианта.
@@ -75,54 +187,7 @@
     //glVertexArrayBindingDivisor(VAO, 0, 1); //instancing
 ```
 
-Теперь разберем код, как можно увидеть поменялись все функции. Перечислю замены: `glCreateBuffers` вместо `glGenBuffers` + `glBindBuffer`; `glNamedBufferData` заменяет `glBufferData`; `glVertexAttribFormat`, `glVertexArrayVertexBuffer` и `glVertexArrayAttribBinding` вместо `glVertexAttribPointer`; `glVertexAttribDivisor` заменяет `glVertexArrayBindingDivisor`; `glNamedBufferSubData` заменяет `glBufferSubData` и добавился новый тип буфера `glNamedBufferStorage` (которыя является в отличии от `glNamedBufferData` immutable, неизменяемым). Как можно заметить у некоторых функций заменился тип буфера на объект буфера или вершинного массива в первом параметре, например `glEnableVertexAttribArray(0);` поменялся на `glEnableVertexArrayAttrib(VAO, 0);` где мы указываем прямо какому VAO включить 0 атрибут, вместо привязанному в первом варианте.
-
-Описание новых функций:
-
-```cpp
-void glVertexArrayAttribFormat(GLuint vaobj, GLuint attribindex, GLint size, GLenum type, GLboolean normalized, GLuint relativeoffset)
-```
-
-по сути является аналогом `glVertexAttribPointer`
-
-- vaobj имя объекта массива вершин
-- attribindex описываемый индекс атрибутов вершин
-- size количество значений на вершину, которые хранятся в массиве. Один из: 1 2 3 4 BGRA
-- type тип данных, хранящихся в массиве
-- normalized, если true, тогда целочисленные данные нормализуются в диапазоне [-1, 1] или [0, 1], если они подписаны или не подписаны, соответственно. Если false, то целочисленные данные напрямую преобразуются в число с плавающей запятой.
-- relativeoffset относительное смещение, измеренного в базовых машинных единицах первого элемента относительно начала привязки буфера вершин, из которого этот атрибут выбирается 
-
-```cpp
-void glVertexArrayVertexBuffer(GLuint vaobj,GLuint bindingindex, GLuint buffer, GLintptr offset, GLsizei stride)
-```
-
-Связывает буфер с точкой привязки вершинного буфера.
-
-- vaobj имя объекта массива вершин
-- bindingindex индекс точки привязки вершинного буфера, к которой привязывается буфер 
-- buffer имя существующего буфера для привязки к точке привязки вершинного буфера
-- offset смещения первого элемента буфера
-- stride расстояние между элементами в буфере
-
-```cpp
-void glVertexArrayAttribBinding(GLuint vaobj, GLuint attribindex, GLuint bindingindex)
-```
-
-Связывает атрибуты вершин и привязку вершинного буфера. То есть связывает attribindex и bindingindex между собой из функций `glVertexArrayAttribFormat` и `glVertexArrayVertexBuffer` соответственно.
-
-- vaobj имя объекта массива вершин
-- attribindex индекс атрибута для привязки к привязке буфера вершин
-- bindingindex индекс привязки буфера вершин, с которым связывается общий атрибут вершины
-
-```cpp
-void glVertexArrayBindingDivisor(GLuint vaobj, GLuint bindingindex, GLuint divisor)
-```
-
-Изменяет скорость, с которой общие атрибуты вершин продвигаются во время рендеринга экземпляров. Например если divisor равен: 0 - каждую вершину, 1 - каждый экземпляр.
-
-- vaobj имя объекта массива вершин
-- bindingindex индекс общего атрибута вершины
-- divisor количество экземпляров, которые будут проходить между обновлениями атрибута в индексе слота
+Теперь разберем код. Перечислю замены: `glCreateBuffers` вместо `glGenBuffers` + `glBindBuffer`; `glCreateVertexArrays` вместо `glGenVertexArrays`; `glNamedBufferData` заменяет `glBufferData`; `glNamedBufferStorage` заменяет `glBufferStorage`; `glNamedBufferSubData` заменяет `glBufferSubData`; `glEnableVertexArrayAttrib` вместо `glEnableVertexAttribArray`; `glVertexArrayVertexBuffer` вместо `glBindVertexBuffer`; `glVertexArrayAttribBinding` заменяет `glVertexAttribBinding` и `glVertexArrayBindingDivisor` вместо `glVertexBindingDivisor`. Использование функций для создания буферов не изменилось, а у других функций появился новый параметр, первый по счету, отвечающий за объект на который он влияет.
 
 Теперь пример с использованием индексов.
 
@@ -139,7 +204,7 @@ void glVertexArrayBindingDivisor(GLuint vaobj, GLuint bindingindex, GLuint divis
     glVertexArrayElementBuffer(VAO, VBE);
 ```
 
-Все тоже самое, только добавился еще один буфер, создаваемый так же как и VBO, только привязываемый к VAO функцией `glVertexArrayElementBuffer`
+Все тоже самое, только добавился еще один буфер, создаваемый так же как и VBO, только привязываемый вручную к VAO функцией `glVertexArrayElementBuffer` и не требующий настройки парметров.
 
 ```cpp
 void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
@@ -148,7 +213,7 @@ void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
 Связывает объект буфера массива элементов с точкой привязки объекта массива вершин.
 
 - vaobj имя объекта массива вершин
-- buffer имя объекта буфера. Если buffer равен нулю, любая существующая привязка буфера массива элементов к vaobj удаляется.
+- buffer имя объекта буфера индексов. Если buffer равен нулю, любая существующая привязка буфера массива элементов к vaobj удаляется.
 
 Так же в новой версии появилась возможность хранить индексы и вершины в одном буфере.
 
@@ -167,20 +232,7 @@ void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
 
 Индексы должны располагаться перед данными вершин а в настройке данных вершин в функции glVertexArrayVertexBuffer надо указать 4 параметром смещение данных вершин относительно начала буфера. В данном коде сначала выделяется буфер а потом заполняется сначала данными индексом с начала буфера а потом данными вершин через `glNamedBufferSubData`.
 
-Изменений в отрисовке нету.
-
-```cpp
-    //отрисовка без индексов
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-    //glDrawArraysInstanced(GL_TRIANGLES, 0, 3, 2); //instanced 2 trinangles
-    glBindVertexArray(0);
-    //отрисовка с индексами
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-    //glDrawElementsInstanced(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0, 2); //instanced 2 triangles
-    glBindVertexArray(0);
-```
+Изменений в отрисовке и удалении буферов нету.
 
 ## Кадровый и рендер буферы
 
