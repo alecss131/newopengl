@@ -187,7 +187,7 @@ void glVertexBindingDivisor(GLuint bindingindex, GLuint divisor)
     //glVertexArrayBindingDivisor(VAO, 0, 1); //instancing
 ```
 
-Теперь разберем код. Перечислю замены: `glCreateBuffers` вместо `glGenBuffers` + `glBindBuffer`; `glCreateVertexArrays` вместо `glGenVertexArrays`; `glNamedBufferData` заменяет `glBufferData`; `glNamedBufferStorage` заменяет `glBufferStorage`; `glNamedBufferSubData` заменяет `glBufferSubData`; `glEnableVertexArrayAttrib` вместо `glEnableVertexAttribArray`; `glVertexArrayVertexBuffer` вместо `glBindVertexBuffer`; `glVertexArrayAttribBinding` заменяет `glVertexAttribBinding` и `glVertexArrayBindingDivisor` вместо `glVertexBindingDivisor`. Использование функций для создания буферов не изменилось, а у других функций появился новый параметр, первый по счету, отвечающий за объект на который он влияет.
+Теперь разберем код. Перечислю замены: `glCreateBuffers` вместо `glGenBuffers` + `glBindBuffer`; `glCreateVertexArrays` вместо `glGenVertexArrays` + `glBindVertexArray`; `glNamedBufferData` заменяет `glBufferData`; `glNamedBufferStorage` заменяет `glBufferStorage`; `glNamedBufferSubData` заменяет `glBufferSubData`; `glEnableVertexArrayAttrib` вместо `glEnableVertexAttribArray`; `glVertexArrayVertexBuffer` вместо `glBindVertexBuffer`; `glVertexArrayAttribBinding` заменяет `glVertexAttribBinding` и `glVertexArrayBindingDivisor` вместо `glVertexBindingDivisor`. Использование функций для создания буферов не изменилось, а у других функций появился новый параметр, первый по счету, отвечающий за объект на который он влияет.
 
 Теперь пример с использованием индексов.
 
@@ -236,7 +236,103 @@ void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
 
 ## Кадровый и рендер буферы
 
-WIP
+Начнем с рендер буфера, так как его можно присоединить к кадровому и для красткости опустим создание текстур (примем что они уже созданы), так как по текстурам будет отдельная статья. Про текстуру добавлю что надо будет создать пустую, передав NULL вместо данных.
+
+Начну как обычно с общих данных
+
+```cpp
+    GLuint fbo;
+    GLuint rbo;
+    GLuint texture;
+    int width = 800, height = 600;
+```
+
+Здесь у нас указатели на рендер буфер, кадровый буфер и текстуру, а так же размеры для буфера в пикселях. Для примера создадим рендер буфер для глубины и трафарета. Рендер буферы быстры на запись но недоступны в общем случае для чтения.
+
+```cpp
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+```
+
+Как видно, принцип создания буфера не сильно отличается от других буфером, главное отличие в функции `glRenderbufferStorage` где мы указываем внутренний формат буфера и его размеры в пикселях вместо выделения памяти. Теперь приступим к созданию кадрового буфера, в котором для буфера цвета будем использовать текстуру.
+
+```cpp
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+```
+
+Налицо уже знакомый и десятки раз примененный нами подход к созданию и использованию объектов библиотеки OpenGL: создаем объект кадрового буфера, привязываем как текущий активный буфер кадра, выполняем необходимые операции и отвязываем кадровый буфер. Перед отвязыванием проверяем кадровый буфер на завершенность. Не буду вдаваться в теорию, функцией `glFramebufferTexture2D` мы привязываем текстуру к буферу в качестве цвета а с помощью `glFramebufferRenderbuffer` рендер буфер в качестве буфера для глубины и трафарета.
+
+И пример использования 
+
+```cpp
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    //все операции рисования будут рисовать в привязанный буфер
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); //0 это буфер экрана
+```
+
+Для поддержки мультисэмплинга (msaa) надо создать мультисэмпл текстуру и рендер буфер с мультисэмплом, изменения будут такие
+
+в создании рендер буфера `glRenderbufferStorageMultisample` вместо `glRenderbufferStorage`
+
+```cpp
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, width, height); 
+```
+
+и другой тип текстуры в создании кадрового буфера, например `GL_TEXTURE_2D_MULTISAMPLE` вместо `GL_TEXTURE_2D`
+
+```cpp
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, texture, 0);
+```
+
+Удаление буферов
+
+```cpp
+    glDeleteTextures(1, &texture);
+    glDeleteRenderbuffers(1, &rbo);
+    glDeleteFramebuffers(1, &fbo);
+```
+
+### OpenGL 4.5 (DSA)
+
+Принцип DSA распространяется и на эти буферы. Начну с примера.
+
+```cpp
+    //создание рендер буфера
+    glCreateRenderbuffers(1, &rbo);
+    glNamedRenderbufferStorage(rbo, GL_DEPTH24_STENCIL8, width, height);
+    // создание кадрового буфера
+    glCreateFramebuffers(1, &fbo);
+    glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, texture, 0);
+    glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+```
+
+Замены как обычно: `glCreateRenderbuffers` вместо `glGenRenderbuffers` + `glBindRenderbuffer`, `glCreateFramebuffers` вместо `glGenFramebuffers` + `glBindFramebuffer`; `glNamedFramebufferTexture` вместо `glFramebufferTexture2D`; `glNamedFramebufferRenderbuffer` вместо `glFramebufferRenderbuffer`; `glNamedRenderbufferStorage` вместо  `glRenderbufferStorage`. В привязывании текстуры пропала необходимость указывать тип текстуры.
+
+В случае с мультисэплом меняется всего одна функция (исключая так же создание нужной текстуры), в отличии от простого кадрового буфера, `glNamedRenderbufferStorageMultisample` вместо `glRenderbufferStorageMultisample`. Весь процесс создания будет выглядеть так
+
+```cpp
+    //создание рендер буфера
+    glCreateRenderbuffers(1, &rbo);
+    glNamedRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, width, height);
+    //создание кадрового буфера
+    glCreateFramebuffers(1, &fbo);
+    glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, texture, 0);
+    glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+```
+
+Использование и удаление буферов не изменилось.
 
 ## Юниформ буфер (ubo)
 
@@ -282,6 +378,12 @@ WIP
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 ```
 
+Удаляется буфер так же как и вершинный
+
+```cpp
+    glDeleteBuffers(1, &uboExampleBlock);
+```
+
 ### OpenGL 4.2
 
 В версии 4.2 появилась возможность в шейдерах явно указать точку привязки юниформ буфера, что избавляет нас от использования функций `glGetUniformBlockIndex` и `glUniformBlockBinding`. Пример в шейдере:
@@ -299,10 +401,13 @@ layout(binding = 0, std140) uniform Name { ... };
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
     //тут исчез блок из пар функций для каждой шейдерной программы
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboExampleBlock);
+    //подразумеваю что заполнять будете несколько позже его создания и привязки
     glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
     glBufferSubData(GL_UNIFORM_BUFFER, 144, 4, &b);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 ```
+
+Изменений в удалении нету.
 
 ### OpenGL 4.3 и 4.5 (immutable buffers и DSA)
 
@@ -314,6 +419,8 @@ layout(binding = 0, std140) uniform Name { ... };
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboExampleBlock);
     glNamedBufferSubData(uboExampleBlock, 144, 4, &b);
 ```
+
+Изменений в удалении нету.
 
 ## Буфер хранилища шейдеров (ssbo)
 
