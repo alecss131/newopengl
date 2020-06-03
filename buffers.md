@@ -240,7 +240,80 @@ WIP
 
 ## Юниформ буфер (ubo)
 
-WIP
+Исходные общие данные для всех примеров.
+
+> Хотя в более новых версиях появилась и новая разметка std430, но для юниформ буферов ее использовать нельзя, только std140. Возможность использовать std430 для юниформ буфера есть только в glsl скомпилированном под Vulkan, при использовании в opengl шейдерная программа не будет компилироваться.
+
+```cpp
+    GLuint uboExampleBlock;
+    GLuint shaderId = 0;
+    const char* name = "Name";
+    int b = true;
+```
+
+Здесь у нас указатели на юниформ буфер, шедерную программу, имя буфера в шейдере и пример данных для записи (int так как в std140 bool занимает 4 байта)
+
+```cpp
+    glGenBuffers(1, &uboExampleBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+    glBufferData(GL_UNIFORM_BUFFER, 150, NULL, GL_STATIC_DRAW); // выделяем 150 байт памяти
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+```
+
+Здесь мы создаем буфер,создание ничем не отличается от создания вершинного буфера кроме типа `GL_UNIFORM_BUFFER`. Для примера выделим блок на 150 байт, ничего не мешает сразу заполнить его данными указав данные вместо NULL в функции `glBufferData`. Далее мы привязываем юниформ блоки в шейдерах к точками привязки (надо сделать для каждой шейдерной программы). Сначала мы получаем индекс юниформ блока в шейдере с помощью функции `glGetUniformBlockIndex` и потом этот индекс связываем с точкой привязки, например 0, с помощью функции `glUniformBlockBinding`.
+
+```cpp
+    GLuint lights_index = glGetUniformBlockIndex(shaderId, name);
+    glUniformBlockBinding(shaderId, lights_index, 0);
+```
+
+После этого нам надо привязать сам буфер к той же точки привязки (в нашем случае 0), целиком (`glBindBufferBase`) или частично (`glBindBufferRange`) указав начало и размер памяти из буфера (в примере мы привязываем буфер целиком но двумя разными способами, два последних параметра это смещение относительно начала буфера 0 и размер буфера 150)
+
+```cpp
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboExampleBlock);
+    //glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboExampleBlock, 0, 150);
+```
+
+Теперь осталось заполнить буфер данными, тоже ничего нового, все тоже самое как заполнение части вершинного буфера.
+
+```cpp
+    glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+    glBufferSubData(GL_UNIFORM_BUFFER, 144, 4, &b);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+```
+
+### OpenGL 4.2
+
+В версии 4.2 появилась возможность в шейдерах явно указать точку привязки юниформ буфера, что избавляет нас от использования функций `glGetUniformBlockIndex` и `glUniformBlockBinding`. Пример в шейдере:
+
+```glsl
+layout(binding = 0, std140) uniform Name { ... };
+```
+
+Весь код из предыдущего примера немного сократится.
+
+```cpp
+    glGenBuffers(1, &uboExampleBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+    glBufferData(GL_UNIFORM_BUFFER, 150, NULL, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    //тут исчез блок из пар функций для каждой шейдерной программы
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboExampleBlock);
+    glBindBuffer(GL_UNIFORM_BUFFER, uboExampleBlock);
+    glBufferSubData(GL_UNIFORM_BUFFER, 144, 4, &b);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+```
+
+### OpenGL 4.3 и 4.5 (immutable buffers и DSA)
+
+С версии 4.3 так же как и для вершин можно использовать неизменяемые буферы, а использование DSA еще сокращает код для создания юниформ буферов, замена `glCreateBuffers` вместо `glGenBuffers` + `glBindBuffer`. Для выделения памяти можно использовать `glNamedBufferStorage` и `glNamedBufferData` вместо `glBufferStorage` и `glBufferData` а для заполнения `glNamedBufferSubData` вместо `glBufferSubData` (никто не мешает заполнить буфер при выделении ему памяти указав вместо NULL данные).
+
+```cpp
+    glCreateBuffers(1, &uboExampleBlock);
+    glNamedBufferStorage(uboExampleBlock, 150, NULL, GL_DYNAMIC_STORAGE_BIT);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboExampleBlock);
+    glNamedBufferSubData(uboExampleBlock, 144, 4, &b);
+```
 
 ## Буфер хранилища шейдеров (ssbo)
 
