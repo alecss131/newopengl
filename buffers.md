@@ -1,4 +1,7 @@
 # Буферы
+
+В данной статье рассмотрены нововведения в буферах. Я рассмотрю самые частоиспользуемые буферы (GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER, GL_UNIFORM_BUFFER, GL_SHADER_STORAGE_BUFFER, GL_RENDERBUFFER, GL_FRAMEBUFFER). Остальные типы буферов (например GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, GL_PIXEL_UNPACK_BUFFER, GL_PIXEL_PACK_BUFFER, GL_QUERY_BUFFER, GL_TEXTURE_BUFFER, GL_TRANSFORM_FEEDBACK_BUFFER, GL_DRAW_INDIRECT_BUFFER, GL_ATOMIC_COUNTER_BUFFER, GL_DISPATCH_INDIRECT_BUFFER) рассматривать не буду, так как не имел с ними опыта. Принцип изменений у них у всех схожий.
+
 ## Вершинные буферы
 
 Исходные общие данные для всех примеров
@@ -164,11 +167,11 @@ void glVertexBindingDivisor(GLuint bindingindex, GLuint divisor)
 
 Изменений в отрисовке и удалении буферов нету.
 
-### OpenGL 4.4 Неизменяемые буферы
+### OpenGL 4.4 (Неизменяемые буферы)
 
 В версии 4.4 добавили неизменяемые (immutable) буферы. Новая функция `glBufferStorage` подобная уже знакомой `glBufferData`. Использование почти такое же как и у `glBufferData` за одним исключением, используются другие флаги, использование старых (напимер `GL_STATIC_DRAW`) будет приводить к ошибкам. По сути для простого рисования достаточно одного флага `GL_DYNAMIC_STORAGE_BIT` вместо прошлых трех (так как понимаю что больше нету разделения на STREAM, STATIC и DYNAMIC и это выбирается автоматически).
 
-### OpenGL 4.5 DSA
+### OpenGL 4.5 (DSA)
 
 В opengl версии 4.5 появилась такая вещь как Direct State Access (DSA) — прямой доступ к состоянию. Средство изменения объектов OpenGL без необходимости привязывать их к контексту. Это позволяет изменять состояние объекта в локальном контексте, не затрагивая глобальное состояние, разделяемое всеми частями приложения. Это также делает API-интерфейс немного более объектно-ориентированным, поскольку функции, которые изменяют состояние объектов, могут быть четко определены. 
 
@@ -424,4 +427,39 @@ layout(binding = 0, std140) uniform Name { ... };
 
 ## Буфер хранилища шейдеров (ssbo)
 
-WIP
+### OpenGL 4.3
+
+В версии 4.3 появился новый тип буферов Shader Storage Buffer, ессли дословно переводить, то буфер хранилища шейдеров, то есть теперь шейдеры могут не только читать из буферов (подобно юниформ буферам), а так же и писать в них (разумеется не стоит забывать про асинхронность выполнения шейдеров), для этих целей и создали этот тип буферов. Помимо неизменяемых буферов появилась и новая, более лучшая, разметка std430 для буферов в замен старой std140. Замечу что шейдеры писать могут только в ssbo, а так же новая разметка применима только к ним (в контексте opengl, так как в вулкане можно использовать std430 с ubo в glsl). Отличий в создании от юниформ буферов нету, кроме указания самого типа буфера. Для разнообразия сразу же заполним данными.
+
+```cpp
+    GLint data[] = {0, 1, 2};
+    GLuint ssbo;
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(data), data, GL_STATIC_DRAW); //можно использовать glBufferStorage
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo); //Можно использовать glBindBufferRange
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+```
+
+Пример буфера в шейдере
+
+```glsl
+    layout(binding = 0, std430) buffer Name {...};
+```
+
+И стандартное удаление.
+
+```cpp
+    glDeleteBuffers(1, &ssbo);
+```
+
+### OpenGL 4.5 (DSA)
+
+Тут тоже ничего нового, ни в создании, ни в удалении, все так же как и с другими буферами. Для разнообразия пример с неизменяемым буфером.
+
+```cpp
+    glCreateBuffers(1, &ssbo);
+    glNamedBufferStorage(ssbo, sizeof(data), data, GL_DYNAMIC_STORAGE_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+    glDeleteBuffers(1, &ssbo);
+```
