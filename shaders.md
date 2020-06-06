@@ -54,8 +54,8 @@
 	glDeleteShader(fragmentShader);
 	//использование (приввзка) шейдерной программы
 	glUseProgram(shaderProgram);
-  //отвязывание шейдерной программы
-  glUseProgram(0);
+    	//отвязывание шейдерной программы
+  	glUseProgram(0);
 	//пример передачи юниформы
 	GLint vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 	glUseProgram(shaderProgram);
@@ -68,7 +68,7 @@
 
 ## OpenGL 4.0
 
-В 4.0 версии появились два новых типа шейдеров. Шейдер управления тесселяцией \(Tessellation Control Shader, TCS\) и шейдер выполнения \(вычисления\) тесселяции \(Tessellation Evaluation Shader, TES\). Не буду пояснять для чего они и как работают, скажу лишь что они обязательно должны идти в паре \(tcs + tes\). Как уже было сказано выше, они создаются и используются так же как и все шейдеры, но у них флаги `GL_TESS_CONTROL_SHADER` и `GL_TESS_EVALUATION_SHADER`.
+В 4.0 версии появились два новых типа шейдеров. Шейдер управления тесселяцией \(Tessellation Control Shader, TCS\) и шейдер выполнения \(вычисления\) тесселяции \(Tessellation Evaluation Shader, TES\). Не буду пояснять для чего они и как работают, скажу лишь что они обязательно должны идти в паре \(tcs + tes\). Как уже было сказано выше, они создаются и используются так же как и все шейдеры, но у них флаги `GL_TESS_CONTROL_SHADER` и `GL_TESS_EVALUATION_SHADER`. Теперь полный графический конвеер стал выглядеть так (в порядке выполнения): вершинный шейдер, шейдер управления тесселяцией, шейдер выполнения тесселяции, геометрический шейдер, фрагментный шейдер.
 
 ## OpenGL 4.1
 
@@ -123,9 +123,9 @@ out gl_PerVertex
 Сами шейдеры можно создавать как и раньше, только добавив специальный флаг к шейдеру перед сборкой программы из одного шейдера. Пример такой программы состоящей только из вершинного шейдера:
 
 ```cpp
-  GLuint vertexShaderProgram;
-  //создание шейдера
-  vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  	GLuint vertexShaderProgram;
+  	//создание шейдера
+  	vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
 	glCompileShader(vertexShader);
 	//проверка ошибок
@@ -134,9 +134,9 @@ out gl_PerVertex
 		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	}
-  vertexShaderProgram = glCreateProgram();
-  glProgramParameteri(vertexShaderProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); //новый флаг
-  glAttachShader(vertexShaderProgram, vertexShader);
+  	vertexShaderProgram = glCreateProgram();
+  	glProgramParameteri(vertexShaderProgram, GL_PROGRAM_SEPARABLE, GL_TRUE); //новый флаг
+  	glAttachShader(vertexShaderProgram, vertexShader);
 	glLinkProgram(vertexShaderProgram);
 	//check errors
 	glValidateProgram(vertexShaderProgram);
@@ -147,11 +147,11 @@ out gl_PerVertex
 	}
 	//удаление шейдера
 	glDeleteShader(vertexShader);
-  //пример передачи юниформы
-  GLint vertexColorLocation = glGetUniformLocation(vertexShaderProgram, "ourColor");
-  glProgramUniform4f(vertexShaderProgram, vertexColorLocation, 0.5f, 0.0f, 1.0f, 1.0f); // новая функция
-  //очистка
-  glDeleteProgram(vertexShaderProgram);
+  	//пример передачи юниформы
+	GLint vertexColorLocation = glGetUniformLocation(vertexShaderProgram, "ourColor");
+  	glProgramUniform4f(vertexShaderProgram, vertexColorLocation, 0.5f, 0.0f, 1.0f, 1.0f); // новая функция
+  	//очистка
+  	glDeleteProgram(vertexShaderProgram);
 ```
 
 Появились две новые функции: `glProgramParameteri(vertexShaderProgram, GL_PROGRAM_SEPARABLE, GL_TRUE);` где мы задаем шейдерной программе что она будет sso и `glProgramUniform4f(vertexShaderProgram, vertexColorLocation, 0.5f, 0.0f, 1.0f, 1.0f);` новая функция для передачи юниформы, где первый параметром передается sso шейдерная программа которой надо передать юниформу. Замечу что я специально не привел использование шейдерной программы, так как оно изменилось и будет рассмотрено далее.
@@ -159,18 +159,18 @@ out gl_PerVertex
 Вместе с sso появился новый и более короткий способоб их создания, вместо примера выше можно их создавать и так:
 
 ```cpp
-  //создание программы
+  	//создание программы
 	GLuint vertexShaderProgram;
 	vertexShaderProgram = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &vertexShaderSource);
-  //проверка ошибок
+  	//проверка ошибок
 	glValidateProgram(vertexShaderProgram);
 	glGetProgramiv(vertexShaderProgram, GL_LINK_STATUS, &success);
 	if (!success) {
 		glGetProgramInfoLog(vertexShaderProgram, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::PROGRAM::VALIDATION_FAILED\n" << infoLog << std::endl;
 	}
-  //пример передачи юниформы
-  GLint vertexColorLocation = glGetUniformLocation(vertexShaderProgram, "ourColor");
+  	//пример передачи юниформы
+  	GLint vertexColorLocation = glGetUniformLocation(vertexShaderProgram, "ourColor");
 	glProgramUniform4f(vertexShaderProgram, vertexColorLocation, 0.5f, 0.0f, 1.0f, 1.0f);
 	//очистка
 	glDeleteProgram(vertexShaderProgram);
@@ -207,7 +207,9 @@ out gl_PerVertex
 
 ## OpenGL 4.3
 
-В версии 4.3 появилась возможность вручную указывать расположение юниформ в шейдерах. Что избавляет от использования функции `glGetUniformLocation`. Пример использования в шейдере:
+В версии 4.3 появился новый тип шейдеров, вычислительные (compute). Они не являются частью графического конвеера и предназначены для параллельных вычислений на видеокарте (подобно openCL). При этом создаются так же как и остальные шейдеры используя флаги `GL_COMPUTE_SHADER` и `GL_COMPUTE_SHADER_BIT`.
+
+Так же версии 4.3 появилась возможность вручную указывать расположение юниформ в шейдерах. Что избавляет от использования функции `glGetUniformLocation`. Пример использования в шейдере:
 
 ```glsl
 layout (location = 0) uniform vec4 ourColor;
