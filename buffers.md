@@ -95,7 +95,7 @@
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribFormat(0, 3, GL_FLOAT, false, 0);
+    glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
     glBindVertexBuffer(0, VBO, 0, 3 * sizeof(GLfloat));
     glVertexAttribBinding(0, 0);
     //glVertexBindingDivisor(0, 1); //instancing
@@ -114,7 +114,7 @@
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VBE);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribFormat(0, 3, GL_FLOAT, false, 0);
+    glVertexAttribFormat(0, 3, GL_FLOAT, GL_FALSE, 0);
     glBindVertexBuffer(0, VBO, 0, 3 * sizeof(GLfloat));
     glVertexAttribBinding(0, 0);
     glBindVertexArray(0);
@@ -184,7 +184,7 @@ void glVertexBindingDivisor(GLuint bindingindex, GLuint divisor)
     glNamedBufferStorage(VBO, sizeof(vertices), vertices, GL_DYNAMIC_STORAGE_BIT); //immutable buffer
     //glNamedBufferSubData(VBO, 0, sizeof(vertices), vertices); //buffer subdata
     glEnableVertexArrayAttrib(VAO, 0);
-    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, false, 0);
+    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayVertexBuffer(VAO, 0, VBO, 0, 3 * sizeof(GLfloat));
     glVertexArrayAttribBinding(VAO, 0, 0);
     //glVertexArrayBindingDivisor(VAO, 0, 1); //instancing
@@ -201,7 +201,7 @@ void glVertexBindingDivisor(GLuint bindingindex, GLuint divisor)
     glNamedBufferStorage(VBO, sizeof(vertices), vertices, GL_DYNAMIC_STORAGE_BIT);
     glNamedBufferStorage(VBE, sizeof(indices), indices, GL_DYNAMIC_STORAGE_BIT);
     glEnableVertexArrayAttrib(VAO, 0);
-    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, false, 0);
+    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayVertexBuffer(VAO, 0, VBO, 0, 3 * sizeof(GLfloat));
     glVertexArrayAttribBinding(VAO, 0, 0);
     glVertexArrayElementBuffer(VAO, VBE);
@@ -227,7 +227,7 @@ void glVertexArrayElementBuffer(GLuint vaobj, GLuint buffer)
     glNamedBufferSubData(VBO, 0, sizeof(indices), indices);
     glNamedBufferSubData(VBO, sizeof(indices), sizeof(vertices), vertices);
     glEnableVertexArrayAttrib(VAO, 0);
-    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, false, 0);
+    glVertexArrayAttribFormat(VAO, 0, 3, GL_FLOAT, GL_FALSE, 0);
     glVertexArrayVertexBuffer(VAO, 0, VBO, sizeof(indices), 3 * sizeof(GLfloat));
     glVertexArrayAttribBinding(VAO, 0, 0);
     glVertexArrayElementBuffer(VAO, VBO);
